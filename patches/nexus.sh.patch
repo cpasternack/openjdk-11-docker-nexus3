@@ -1,0 +1,69 @@
+--- nexus.sh	2020-07-09 04:37:48.000000000 +0100
++++ ../ansible/roles/nexus3/files/nexus.sh	2020-06-17 16:37:47.149770953 +0100
+@@ -143,27 +143,33 @@
+   tested_jvm=false
+   read_db_entry || create_db_entry $2
+ 
++# this was not so great
++# let's clean it up
+   if [ "$ver_major" = "" ]; then
+     return;
+   fi
+   if [ "$ver_major" -lt "1" ]; then
+     return;
+-  elif [ "$ver_major" -eq "1" ]; then
+-    if [ "$ver_minor" -lt "8" ]; then
+-      return;
+-    fi
+-  fi
+-
+-  if [ "$ver_major" = "" ]; then
+-    return;
+-  fi
+-  if [ "$ver_major" -gt "1" ]; then
+-    return;
+-  elif [ "$ver_major" -eq "1" ]; then
+-    if [ "$ver_minor" -gt "8" ]; then
+-      return;
+-    fi
+   fi
++# java 1.8 insanity
++#  if [ "$ver_major" -lt "1" ]; then
++#    return;
++#  elif [ "$ver_major" -eq "1" ]; then
++#    if [ "$ver_minor" -lt "8" ]; then
++#      return;
++#    fi
++#  fi
++#
++#  if [ "$ver_major" = "" ]; then
++#    return;
++#  fi
++#  if [ "$ver_major" -gt "1" ]; then
++#    return;
++#  elif [ "$ver_major" -eq "1" ]; then
++#    if [ "$ver_minor" -gt "8" ]; then
++#      return;
++#    fi
++#  fi
+ 
+   app_java_home=$test_dir
+ }
+@@ -433,14 +439,15 @@
+ fi
+   search_jre
+ fi
++# this has got to go too....
+ if [ -z "$app_java_home" ]; then
+   echo No suitable Java Virtual Machine could be found on your system.
+-  echo The version of the JVM must be 1.8.
++  echo The version of the JVM must be 1.8. 
+   echo Please define INSTALL4J_JAVA_HOME to point to a suitable JVM.
+   exit 83
+ fi
+ 
+-
++# jaxb api needs to be bumped to  >=2.3.x
+ i4j_classpath="$app_home/.install4j/i4jruntime.jar"
+ local_classpath=""
+ add_class_path "$i4j_classpath"

@@ -1,0 +1,207 @@
+# tasks for nexus3
+
+- name: "Download Nexus3"
+  command: echo
+
+- name: "Create {{ SONATYPE_DIR }} path"
+  file:
+    path: "{{ SONATYPE_DIR }}"
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: sonatype_path_create
+
+- name: "Download nexus3 version {{ NEXUS_VERSION }} to {{ SONATYPE_DIR }}"
+  get_url:
+    url: "{{ NEXUS_DOWNLOAD_URL }}"
+    dest: "{{ SONATYPE_DIR }}"
+    checksum: "sha256:{{ NEXUS_DOWNLOAD_SHA256_HASH }}"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+  register: nexus_download
+
+- name: "Extract {{ NEXUS_DOWNLOAD_URL }} to {{ SONATYPE_DIR }}"
+  unarchive:
+    src: "{{ SONATYPE_DIR }}/nexus-{{ NEXUS_VERSION }}-unix.tar.gz"
+    dest: "{{ SONATYPE_DIR }}"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    list_files: yes
+    copy: no
+  register: unarchive_nexus3
+
+- name: "Remove nexus-{{ NEXUS_VERSION }}-unix.tar.gz archive"
+  file:
+    path: "{{ SONATYPE_DIR}}/nexus-{{ NEXUS_VERSION }}-unix.tar.gz"
+    state: absent
+
+- name: "Remove {{ NEXUS_HOME }} directory before linking, because ansible is silly"
+  file:
+    path: "{{ NEXUS_HOME }}"
+    state: absent
+
+- name: "Link {{ NEXUS_HOME }} path"
+  file:
+    src: "{{ SONATYPE_DIR }}/nexus-{{ NEXUS_VERSION }}"
+    dest: "{{ NEXUS_HOME }}"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: link
+    force: yes
+  register: nexus_home_path_link
+
+- debug: var="{{ item }}"
+  loop:
+    - nexus_download.stdout
+    - unarchive_nexus3.stdout
+    - nexus_home_path_link.stdout
+
+- name: "Set permissions on {{ NEXUS_HOME }} path"
+  file:
+    path: "{{ NEXUS_HOME }}/"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: sonatype_work_path
+
+- name: "Set permissions on {{ NEXUS_DATA }} path"
+  file:
+    path: "{{ NEXUS_DATA }}"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: nexus_data_path
+
+- name: "Set permissions on {{ NEXUS_DATA }}/etc path"
+  file:
+    path: "{{ NEXUS_DATA }}/etc"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: nexus_data_path_etc
+
+- name: "Create {{ NEXUS_DATA }}/log path"
+  file:
+    path: "{{ NEXUS_DATA }}/log"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: nexus_data_path_log
+
+- name: "Create {{ NEXUS_DATA }}/tmp path"
+  file:
+    path: "{{ NEXUS_DATA }}/tmp"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: nexus_data_path_tmp
+
+- name: "Set permissions on {{ SONATYPE_WORK }} path"
+  file:
+    path: "{{ SONATYPE_WORK }}"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: directory
+    recurse: yes
+  register: sonatype_work_path
+
+- name: "Remove {{ SONATYPE_WORK }}/nexus3 directory before linking"
+  file:
+    path: "{{ SONATYPE_WORK }}/nexus3"
+    state: absent
+
+- name: "Link {{ SONATYPE_WORK }}/nexus3 to {{ NEXUS_DATA }}"
+  file:
+    dest: "{{ SONATYPE_WORK }}/nexus3"
+    src: "{{ NEXUS_DATA }}"
+    owner: "{{ CONTAINER_USER }}" 
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    state: link
+  register: sonatype_work_link
+
+- debug: var="{{ item }}"
+  loop:
+    - sonatype_path_create.stdout
+    - nexus_home_path_create.stdout
+    - nexus_data_path.stdout
+    - nexus_data_path_etc.stdout
+    - nexus_data_path_log.stdout
+    - nexus_data_path_tmp.stdout
+    - sonatype_work_path.stdout
+    - sonatype_work_link.stdout
+  when: nexus_data_path.changed
+
+- name: "Copy nexus3 configuration"
+  command: echo
+
+- name: "Copy custom nexus.sh without Java8 hardcoding to {{ NEXUS_HOME }}/bin/nexus"
+  copy:
+    src: "nexus.sh"
+    dest: "{{ NEXUS_HOME }}/bin/nexus"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+    backup: no
+  register: nexus_sh
+
+- name: "Copy custom nexus.vmoptions for Java9+ to {{ NEXUS_HOME }}/bin"
+  copy:
+    src: "nexus.vmoptions"
+    dest: "{{ NEXUS_HOME }}/bin/nexus.vmoptions"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0664
+    backup: no
+  register: nexus_vmoptions
+
+- name: "Copy nexus-default.properties.j2 to {{ NEXUS_HOME }}/etc/nexus-default.properties"
+  template:
+    src: "nexus-default.properties.j2"
+    dest: "{{ NEXUS_HOME }}/etc/nexus-default.properties"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0664
+    backup: no
+  register: nexus_properties
+
+- name: Copy limits.conf to /etc/security/limits.conf
+  copy:
+    src: "limits.conf"
+    dest: "/etc/security/limits.conf"
+    owner: root
+    group: root
+    mode: 0644
+  register: limits_conf
+
+- name: "Copy custom startup script to {{ SONATYPE_DIR }}"
+  template:
+    src: "start_nexus.sh.j2"
+    dest: "{{ SONATYPE_DIR }}/start-nexus-repository-manager.sh"
+    owner: "{{ CONTAINER_USER }}"
+    group: "{{ CONTAINER_USER }}"
+    mode: 0755
+  register: startup_script
+
+- debug: var="{{ item }}"
+  loop:
+    - nexus_sh.stdout
+    - nexus_vmoptions.stdout
+    - nexus_properties.stdout
+    - limits_conf.stdout
+    - startup_script.stdout

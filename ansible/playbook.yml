@@ -1,0 +1,43 @@
+---
+# playbook to configure docker container
+- hosts: localhost
+  tasks:
+    - name: "Configure container"
+      command: echo
+
+    - name: "Create main {{ CONTAINTER_GROUP }}"
+      group:
+        name: "{{ CONTAINER_GROUP }}"
+        state: present
+      register: group_create
+
+    - name: "Create main {{ CONTAINER_USER }} as system user"
+      user:
+        name: "{{ CONTAINER_USER }}"
+        append: yes
+        comment: "{{ USER_COMMENT }}"
+        groups: "{{ CONTAINER_GROUP }}"
+        create_home: no
+        home: "{{ USER_HOME }}"
+        system: yes
+        shell: /usr/bin/false
+        uid: "{{ USER_UID }}"
+      register: user_create
+
+    - debug: var="{{ item }}"
+      loop:
+        - group_create.stdout
+        - user_create.stdout
+      when: user_create.changed
+
+# import nexus3 role
+    - import_role:
+        name: nexus3
+
+# add additional tasks into container
+#    - name: Include additional tasks when defined
+#      include: "{{ item }}"
+#      with_items:
+#        - "{{ EXTERNAL_TASKS }}"
+#      static: no
+#      when: EXTERNAL_TASKS is defined

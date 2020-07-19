@@ -1,0 +1,11 @@
+# Store container variables below
+CONTAINER_USER: "nexus"
+CONTAINER_GROUP: "nexus"
+
+# do we include external tasks? define the name(s) below
+# ex. EXTERNAL_TASKS: [ "task1.yml","task2.yml","task3.yml" ]
+EXTERNAL_TASKS: ""
+
+USER_COMMENT: "Sonatype nexus repository 3"
+USER_HOME: "/opt/sonatype/nexus"
+USER_UID: "200"
